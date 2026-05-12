@@ -1,4 +1,40 @@
 <?php require_once 'fonctions.php'; ?>
+
+<?php
+// ==================== TRAITEMENT DE LA RECHERCHE (100% PHP) ====================
+// Récupération du mot-clé depuis $_GET (comme demandé dans la consigne)
+$mot_cle = cleanInput($_GET['q'] ?? '');
+
+// Récupération de tous les projets
+$tous_les_projets = getProjects();
+
+// Filtrage des projets par mot-clé (titre, description, technologies)
+$projets_filtrer = [];
+
+if ($mot_cle !== '') {
+    foreach ($tous_les_projets as $projet) {
+        // Mise en minuscules pour une recherche insensible à la casse
+        $titre = strtolower($projet['title']);
+        $description = strtolower($projet['description']);
+        $tech = strtolower(implode(' ', $projet['tech']));
+        
+        // Vérification si le mot-clé est présent
+        if (strpos($titre, $mot_cle) !== false || 
+            strpos($description, $mot_cle) !== false ||
+            strpos($tech, $mot_cle) !== false) {
+            $projets_filtrer[] = $projet;
+        }
+    }
+} else {
+    // Pas de recherche : afficher tous les projets
+    $projets_filtrer = $tous_les_projets;
+}
+
+// Variables pour l'affichage
+$nombre_resultats = count($projets_filtrer);
+$recherche_effectuee = ($mot_cle !== '');
+?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -15,50 +51,59 @@
             height: 200px;
             object-fit: cover;
             display: block;
-            pointer-events: none;
-            cursor: default;
         }
         
         .project-icon {
-            background: none;
-            padding: 0;
-            overflow: hidden;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            padding: 2rem;
+            text-align: center;
+            font-size: 3rem;
+            color: white;
             min-height: 200px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         
-        .project-icon i {
-            font-size: 4rem;
-            color: white;
-            display: block;
-        }
-        
-        .icon-wrapper {
-            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-            width: 100%;
-            height: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
         .project-card {
-            cursor: default;
-            transition: all 0.3s ease;
-        }
-
-        /* Pour que "Mes Projets" reste sur une seule ligne */
-        .hero h1 span {
-            display: inline;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: var(--transition);
         }
         
-        .hero h1 {
-            font-size: 3.5rem;
+        .project-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+        
+        .project-info {
+            padding: 1.5rem;
+        }
+        
+        .project-info h3 {
+            margin-bottom: 0.5rem;
+        }
+        
+        .project-info p {
+            color: var(--text-secondary);
             margin-bottom: 1rem;
-            font-weight: 700;
-            line-height: 1.2;
+        }
+        
+        .project-tech {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .project-tech span {
+            background: rgba(183, 110, 255, 0.12);
+            padding: 0.3rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            color: var(--accent);
         }
 
         /* Barre de recherche */
@@ -108,45 +153,39 @@
             color: var(--text-secondary);
         }
         
-        /* Filtres mots-clés */
-        .filters-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 0.8rem;
-            margin-bottom: 2rem;
-        }
-        
-        .filter-btn {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
+        .search-box button {
+            background: var(--accent);
+            border: none;
+            color: white;
             padding: 0.5rem 1.2rem;
             border-radius: 50px;
-            font-size: 0.85rem;
             cursor: pointer;
+            font-weight: 600;
             transition: var(--transition);
-            font-family: 'Inter', sans-serif;
         }
         
-        .filter-btn:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-            transform: translateY(-2px);
-        }
-        
-        .filter-btn.active {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: white;
+        .search-box button:hover {
+            background: var(--accent-hover);
         }
         
         /* Résultats */
-        .results-count {
+        .results-info {
             text-align: center;
-            margin-bottom: 1.5rem;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            padding: 0.8rem;
+            border-radius: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+        
+        .results-info .badge {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 0.2rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
         }
         
         .no-results {
@@ -164,15 +203,60 @@
             color: var(--accent);
         }
         
-        /* Animation des cartes */
-        .project-card {
-            opacity: 1;
-            transform: scale(1);
-            transition: all 0.3s ease;
+        .clear-search {
+            display: inline-block;
+            margin-top: 1rem;
+            color: var(--accent);
+            text-decoration: none;
         }
         
-        .project-card.hidden {
-            display: none;
+        .clear-search:hover {
+            text-decoration: underline;
+        }
+        
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+        
+        /* Hero span sur une ligne */
+        .hero h1 span {
+            display: inline;
+        }
+        
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        @media (max-width: 768px) {
+            .projects-grid {
+                grid-template-columns: 1fr;
+            }
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            .search-box {
+                flex-direction: column;
+                gap: 0.8rem;
+                border-radius: 20px;
+                background: transparent;
+            }
+            .search-box input {
+                width: 100%;
+                background: var(--bg-card);
+                padding: 0.8rem;
+                border-radius: 50px;
+                border: 1px solid var(--border);
+            }
+            .search-box button {
+                width: 100%;
+                padding: 0.8rem;
+            }
         }
     </style>
 </head>
@@ -184,80 +268,86 @@
             <div class="hero-badge">
                 <i class="fas fa-folder-open"></i> Mes réalisations
             </div>
-            <h1> <span>Mes projets</span></h1>
+            <h1><span>Mes projets</span></h1>
             <p>Découvrez les projets que j'ai réalisés durant mon parcours</p>
         </section>
 
-        <!-- Barre de recherche et filtres -->
+        <!-- ==================== FORMULAIRE DE RECHERCHE ==================== -->
+        <!-- Utilisation de $_GET comme demandé dans la consigne (section 5.3) -->
         <div class="search-section fade-in">
             <div class="search-container">
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Rechercher un projet... (titre, description, technologie)">
-                </div>
+                <form method="GET" action="" style="width: 100%; display: flex; justify-content: center;">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" 
+                               name="q" 
+                               value="<?php echo htmlspecialchars($mot_cle); ?>" 
+                               placeholder="Rechercher un projet... (titre, description, technologie)">
+                        <button type="submit">
+                            <i class="fas fa-search"></i> Rechercher
+                        </button>
+                    </div>
+                </form>
             </div>
             
-            <div class="filters-container" id="filtersContainer">
-                <button class="filter-btn active" data-filter="all">Tous</button>
-                <button class="filter-btn" data-filter="web">🌐 Web</button>
-                <button class="filter-btn" data-filter="iot">📡 IoT</button>
-                <button class="filter-btn" data-filter="c">⚙️ C</button>
-                <button class="filter-btn" data-filter="reseau">🔄 Réseau</button>
-                <button class="filter-btn" data-filter="php">🐘 PHP</button>
-                <button class="filter-btn" data-filter="python">🐍 Python</button>
-                <button class="filter-btn" data-filter="javascript">📜 JavaScript</button>
+            <!-- Affichage des résultats de recherche (PHP) -->
+            <div class="results-info">
+                <?php if ($recherche_effectuee): ?>
+                    <i class="fas fa-search"></i> 
+                    <?php if ($nombre_resultats > 0): ?>
+                        <?php echo $nombre_resultats; ?> projet<?php echo $nombre_resultats > 1 ? 's' : ''; ?> trouvé<?php echo $nombre_resultats > 1 ? 's' : ''; ?> 
+                        pour "<strong><?php echo htmlspecialchars($mot_cle); ?></strong>"
+                        <a href="projets.php" class="badge">
+                            <i class="fas fa-times"></i> Effacer
+                        </a>
+                    <?php else: ?>
+                        Aucun résultat pour "<strong><?php echo htmlspecialchars($mot_cle); ?></strong>"
+                        <a href="projets.php" class="badge">
+                            <i class="fas fa-undo"></i> Voir tous les projets
+                        </a>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <i class="fas fa-info-circle"></i> 
+                    <?php echo $nombre_resultats; ?> projet<?php echo $nombre_resultats > 1 ? 's' : ''; ?> au total
+                    <span class="badge">Recherche par mot-clé</span>
+                <?php endif; ?>
             </div>
-            
-            <div class="results-count" id="resultsCount"></div>
         </div>
 
-        <div class="projects-grid" id="projectsGrid">
-            <?php 
-            $projects = getProjects();
-            foreach ($projects as $index => $project): 
-                // Déterminer la catégorie du projet pour le filtrage
-                $categories = [];
-                $titleLower = strtolower($project['title']);
-                $descLower = strtolower($project['description']);
-                $techLower = array_map('strtolower', $project['tech']);
-                
-                if (strpos($titleLower, 'agro') !== false || strpos($descLower, 'agriculteur') !== false) $categories[] = 'web';
-                if (strpos($titleLower, 'iot') !== false || in_array('esp32', $techLower)) $categories[] = 'iot';
-                if (strpos($titleLower, 'c') !== false || in_array('langage c', $techLower)) $categories[] = 'c';
-                if (strpos($titleLower, 'reverse') !== false || strpos($titleLower, 'proxy') !== false || in_array('nginx', $techLower)) $categories[] = 'reseau';
-                if (in_array('php', $techLower)) $categories[] = 'php';
-                if (in_array('python', $techLower)) $categories[] = 'python';
-                if (in_array('javascript', $techLower)) $categories[] = 'javascript';
-                
-                $categories = array_unique($categories);
-                $dataCategories = implode(' ', $categories);
-            ?>
-            <div class="project-card" 
-                 data-title="<?php echo strtolower($project['title']); ?>" 
-                 data-description="<?php echo strtolower($project['description']); ?>"
-                 data-tech="<?php echo strtolower(implode(' ', $project['tech'])); ?>"
-                 data-categories="<?php echo $dataCategories; ?>">
-                <div class="project-icon">
-                    <?php if ($project['hasImage']): ?>
-                        <img src="<?php echo $project['image']; ?>" alt="<?php echo $project['title']; ?>" class="project-img" onerror="this.src='https://placehold.co/600x400/2a2a2a/B76EFF?text=<?php echo urlencode($project['title']); ?>'">
-                    <?php else: ?>
-                        <div class="icon-wrapper">
-                            <i class="fas <?php echo $project['icon']; ?>"></i>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <div class="project-info">
-                    <h3><?php echo $project['title']; ?></h3>
-                    <p><?php echo $project['description']; ?></p>
-                    <div class="project-tech">
-                        <?php foreach ($project['tech'] as $tech): ?>
-                        <span><?php echo $tech; ?></span>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
+        <!-- ==================== AFFICHAGE DYNAMIQUE DES PROJETS ==================== -->
+        <!-- Utilisation d'une boucle foreach comme demandé dans la consigne -->
+        <?php if (empty($projets_filtrer)): ?>
+            <div class="no-results fade-in">
+                <i class="fas fa-search"></i>
+                <h3>Aucun projet trouvé</h3>
+                <p>Essayez d'autres mots-clés ou <a href="projets.php" class="clear-search">affichez tous les projets</a></p>
             </div>
-            <?php endforeach; ?>
-        </div>
+        <?php else: ?>
+            <div class="projects-grid">
+                <?php foreach ($projets_filtrer as $projet): ?>
+                    <div class="project-card fade-in">
+                        <div class="project-icon">
+                            <?php if ($projet['hasImage'] && file_exists($projet['image'])): ?>
+                                <img src="<?php echo htmlspecialchars($projet['image']); ?>" 
+                                     alt="<?php echo htmlspecialchars($projet['title']); ?>" 
+                                     class="project-img">
+                            <?php else: ?>
+                                <i class="fas fa-code"></i>
+                            <?php endif; ?>
+                        </div>
+                        <div class="project-info">
+                            <h3><?php echo htmlspecialchars($projet['title']); ?></h3>
+                            <p><?php echo htmlspecialchars($projet['description']); ?></p>
+                            <div class="project-tech">
+                                <?php foreach ($projet['tech'] as $tech): ?>
+                                    <span><?php echo htmlspecialchars($tech); ?></span>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </main>
 
     <?php include 'pied-de-page.php'; ?>
@@ -294,94 +384,6 @@
             });
         }
 
-        // ========== FONCTIONNALITÉS DE RECHERCHE ET FILTRAGE ==========
-        
-        const searchInput = document.getElementById('searchInput');
-        const filterBtns = document.querySelectorAll('.filter-btn');
-        const projectCards = document.querySelectorAll('.project-card');
-        const resultsCount = document.getElementById('resultsCount');
-        
-        let currentFilter = 'all';
-        let currentSearch = '';
-        
-        // Fonction pour mettre à jour l'affichage des projets
-        function filterProjects() {
-            let visibleCount = 0;
-            
-            projectCards.forEach(card => {
-                const title = card.dataset.title;
-                const description = card.dataset.description;
-                const tech = card.dataset.tech;
-                const categories = card.dataset.categories;
-                
-                // Vérifier le filtre
-                let matchesFilter = (currentFilter === 'all') || categories.includes(currentFilter);
-                
-                // Vérifier la recherche
-                let matchesSearch = true;
-                if (currentSearch !== '') {
-                    matchesSearch = title.includes(currentSearch) || 
-                                   description.includes(currentSearch) || 
-                                   tech.includes(currentSearch);
-                }
-                
-                if (matchesFilter && matchesSearch) {
-                    card.classList.remove('hidden');
-                    visibleCount++;
-                } else {
-                    card.classList.add('hidden');
-                }
-            });
-            
-            // Mettre à jour le compteur
-            const total = projectCards.length;
-            if (visibleCount === total) {
-                resultsCount.textContent = `${total} projet${total > 1 ? 's' : ''} affiché${total > 1 ? 's' : ''}`;
-            } else {
-                resultsCount.textContent = `${visibleCount} projet${visibleCount > 1 ? 's' : ''} sur ${total}`;
-            }
-            
-            if (visibleCount === 0) {
-                if (!document.querySelector('.no-results-message')) {
-                    const grid = document.getElementById('projectsGrid');
-                    const noResultsMsg = document.createElement('div');
-                    noResultsMsg.className = 'no-results no-results-message';
-                    noResultsMsg.innerHTML = `
-                        <i class="fas fa-search"></i>
-                        <h3>Aucun projet trouvé</h3>
-                        <p>Essayez d'autres mots-clés ou filtres</p>
-                    `;
-                    noResultsMsg.style.gridColumn = '1 / -1';
-                    grid.appendChild(noResultsMsg);
-                }
-            } else {
-                const existingMsg = document.querySelector('.no-results-message');
-                if (existingMsg) existingMsg.remove();
-            }
-        }
-        
-        // Écouteur pour la barre de recherche
-        searchInput.addEventListener('input', (e) => {
-            currentSearch = e.target.value.toLowerCase().trim();
-            filterProjects();
-        });
-        
-        // Écouteurs pour les boutons de filtre
-        filterBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Mettre à jour l'état actif des boutons
-                filterBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                // Mettre à jour le filtre courant
-                currentFilter = btn.dataset.filter;
-                filterProjects();
-            });
-        });
-        
-        // Initialisation
-        filterProjects();
-
         // Animations
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -392,3 +394,4 @@
     </script>
 </body>
 </html>
+     
